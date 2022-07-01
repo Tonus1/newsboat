@@ -227,7 +227,7 @@ msgstr "`%s' n'est pas un élément de configuration valide"
 #, c-format
 msgid "Newsboat: finished reload, %f unread feeds (%n unread articles total)"
 msgstr ""
-"Newsboat : rechargement terminé, %f fils non lus (%n articles à lire au "
+"Newsboat : rechargement terminé, %f fils non lus (%n articles non lus au "
 "total)"
 
 #: src/configcontainer.cpp:289
@@ -264,7 +264,7 @@ msgstr "%N %V - Aide"
 
 #: src/configcontainer.cpp:311
 msgid "%N %V - Article '%T' (%u unread, %t total)"
-msgstr "%N %V - Article '%T' (%u à lire, %t au total) - %U"
+msgstr "%N %V - Article '%T' (%u non lus, %t au total) - %U"
 
 #: src/configcontainer.cpp:315
 msgid ""
@@ -571,7 +571,7 @@ msgstr "Importation de %s terminée."
 #: src/controller.cpp:877
 #, c-format
 msgid "%u unread articles"
-msgstr "%u articles à lire"
+msgstr "%u articles non lus"
 
 #: src/controller.cpp:882
 #, c-format
@@ -753,7 +753,7 @@ msgstr "Erreur : Le fil n'a pu être marqué comme étant lu : %s"
 #: src/feedlistformaction.cpp:345 src/feedlistformaction.cpp:354
 #: src/feedlistformaction.cpp:380
 msgid "No feeds with unread items."
-msgstr "Aucun fil ne possède des éléments à lire"
+msgstr "Aucun fil ne possède d'éléments non lus"
 
 #: src/feedlistformaction.cpp:362 src/itemlistformaction.cpp:470
 msgid "Already on last feed."
@@ -871,7 +871,7 @@ msgstr "Position non visible !"
 #: src/feedlistformaction.cpp:1113
 #, c-format
 msgid "Feed List - %u unread, %u total"
-msgstr "Liste de fils - %u à lire, %u au total"
+msgstr "Liste de fils - %u non lus, %u au total"
 
 #: src/filebrowserformaction.cpp:122
 #, c-format
@@ -1077,7 +1077,7 @@ msgstr "Erreur : aucun élément sélectionné !"
 #: src/itemviewformaction.cpp:351 src/itemviewformaction.cpp:384
 #: src/view.cpp:767 src/view.cpp:850
 msgid "No unread items."
-msgstr "Aucun élément à lire."
+msgstr "Aucun élément non lu."
 
 #: src/itemlistformaction.cpp:438 src/itemviewformaction.cpp:362
 #: src/view.cpp:929
@@ -1091,7 +1091,7 @@ msgstr "Déjà au premier élément."
 
 #: src/itemlistformaction.cpp:460 src/itemlistformaction.cpp:465
 msgid "No unread feeds."
-msgstr "Aucun fil ne contient d'éléments à lire."
+msgstr "Aucun fil ne contient d'éléments non lus."
 
 #: src/itemlistformaction.cpp:540
 msgid "Marking all above as read..."
@@ -1328,11 +1328,11 @@ msgstr "Passer à l'élément précédent"
 
 #: src/keymap.cpp:105
 msgid "Go to next unread article"
-msgstr "Passer au prochain article à lire"
+msgstr "Passer au prochain article non lu"
 
 #: src/keymap.cpp:112
 msgid "Go to previous unread article"
-msgstr "Passer au précédent article à lire"
+msgstr "Passer au précédent article non lu"
 
 #: src/keymap.cpp:119
 msgid "Go to a random unread article"
@@ -1344,12 +1344,12 @@ msgstr "Ouvrir l'article ou l'élément dans la vue URL. Marquer comme lu"
 
 #: src/keymap.cpp:133
 msgid "Open all unread items of selected feed in browser"
-msgstr "Ouvrir tous les articles à lire du fil dans le navigateur"
+msgstr "Ouvrir tous les articles non lus du fil dans le navigateur"
 
 #: src/keymap.cpp:140
 msgid "Open all unread items of selected feed in browser and mark read"
 msgstr ""
-"Ouvrir tous les articles à lire du fil dans le navigateur, puis les marquer "
+"Ouvrir tous les articles non lus du fil dans le navigateur, puis les marquer "
 "comme lus"
 
 #: src/keymap.cpp:148
@@ -1432,7 +1432,7 @@ msgstr "Lancer la lecture du téléchargement actuel"
 
 #: src/keymap.cpp:247
 msgid "Mark file as finished (not played)"
-msgstr "Marquer le fichier comme terminé (à lire)"
+msgstr "Marquer le fichier comme terminé (non lu)"
 
 #: src/keymap.cpp:254
 msgid "Increase the number of concurrent downloads"
@@ -1480,11 +1480,11 @@ msgstr "Passer au fil précédent"
 
 #: src/keymap.cpp:313
 msgid "Go to next unread feed"
-msgstr "Passer au fil à lire suivant"
+msgstr "Passer au fil non lu suivant"
 
 #: src/keymap.cpp:320
 msgid "Go to previous unread feed"
-msgstr "Passer au fil à lire précédent"
+msgstr "Passer au fil non lu précédent"
 
 #: src/keymap.cpp:323
 msgid "Call a macro"
