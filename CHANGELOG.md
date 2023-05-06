@@ -1,14 +1,174 @@
 # Changes for Newsboat
 
-## Unreleased - expected 2022-09-25
+## Unreleased - expected 2023-06-25
+
+Lists below only mention user-visible changes, but the full list of contributors
+for this release also includes: TK.
+
+## Added
+
+## Changed
+
+- Bumped minimum supported Rust version to 1.66.1
+
+## Deprecated
+
+## Removed
+
+## Fixed
+
+## Security
+
+
+
+## 2.31 - 2023-03-26
+
+Lists below only mention user-visible changes, but the full list of contributors
+for this release also includes: Sergei Trofimovich and giuliano.
 
 ### Added
+
+- Operations for scrolling by half a page (`halfpageup`, `halfpagedown`) (#36)
+    (Dennis van der Schagt)
+- If `--log-level` is specified but `--log-file` isn't, write the log to a file
+    named after the template `newsboat_%Y-%m-%d_%H.%M.%S.log`, i.e. use the
+    current date and time (Dennis van der Schagt)
+- _contrib/move_url.py_ for moving feeds in Newsboat's database while keeping
+    articles (blankie)
+
 ### Changed
-- Bumped minimum supported Rust version to 1.59.0
-### Deprecated
-### Removed
+
+- Updated translations: Dutch (Dennis van der Schagt), German (Lysander
+    Trischler), Italian (Mauro Scomparin), Polish (Carno), Russian and Ukrainian
+    (Alexander Batischev), Spanish (Roboron3042), Turkish (Emir SARI)
+- Bumped minimum supported Rust version to 1.64.0
+
 ### Fixed
+
+- Inability to exit search mode when `quit` is bound to `BACKSPACE` (#2336)
+    (Dennis van der Schagt, Alexander Batischev)
+
+
+
+## 2.30.1 - 2022-12-30
+
+### Fixed
+
+- Build failure with curl 7.87.
+
+  It was caused by us using a deprecated curl constant, which in 7.87 started
+  emitting a warning. Since we turn warnings into errors (-Werror), this failed
+  the build. This wasn't spotted by our CI because curl 7.87 only came out a few
+  days before Newsboat 2.30 did, and our CI uses Ubuntu LTS which doesn't pull
+  updates *that* fast.
+
+  The fix replaces the deprecated constant with a newer one. This also required
+  a bump of minimum supported curl version from 7.21.6 (released 16 June 2010)
+  to 7.32.0 (released 11 August 2013), which shouldn't affect anyone because of
+  how low the new requirement is.
+
+  (#2297) (Dennis van der Schagt)
+
+
+
+## 2.30 - 2022-12-25
+
+Lists below only mention user-visible changes, but the full list of contributors
+for this release also includes: Arttano, Danny Kirkham, Juho Eerola, and Pepe
+Doval.
+
+### Added
+
+- In config, long lines can now be broken into multiple ones with `\`. When
+    parsing the config, Newsboat would remove the backslash and append the
+    following line to the current one. Be careful when indenting the lines that
+    follow the backslash, as the indentation will be included in the
+    concatenated string; this can change the meaning of some commands, e.g. if
+    the indentation ends up inside a regex (#2212) (Simon Farre)
+- `article-feed` operation, to go to the feed of the currently selected article.
+    This can come in handy in query feeds (phire)
+- New placeholder for `browser`, `%T`, which is replaced by the title of the
+    selected feed or item (#2224) (Aneesh)
+- Miniflux: fail on startup if credentials are wrong (#2220) (Dennis van der
+    Schagt)
+- Miniflux: support for API token authentication, which is available since
+    Miniflux 2.0.21 and is the preferred authentication method:
+    https://miniflux.app/docs/api.html#authentication See `miniflux-token`,
+    `miniflux-tokeneval`, and `miniflux-tokenfile` settings (#2122) (Dennis van
+    der Schagt)
+
+### Changed
+
+- Bumped minimum supported Rust version to 1.62.0
+- When `cleanup-on-quit` is disabled and the cache contains unreachable feeds,
+    print their number, and write their URLs to `error-log` (#1548) (Maximilian
+    Winkler)
+- If an item contains enclosure(s) but doesn't specify their type(s), pick the
+    last one (as Newsboat only displays a single enclosure per item). This won't
+    always do the right thing, e.g. it could pick cover art instead of the
+    podcast, but *sometimes* it will, so it's still better than nothing (#2050)
+    (Dennis van der Schagt)
+- Updated translations: Dutch (Dennis van der Schagt), German (Lysander
+    Trischler), Italian (Mauro Scomparin), Polish (Carno), Russian (Alexander
+    Batischev), Turkish (Emir SARI), Ukrainian (Alexander Batischev)
+- Updated vendored library Catch2 to 2.13.10
+
+### Fixed
+
+- Atom: if an item doesn't specify the `atom:author`, use the field from the
+    contained `atom:source`; if that's not specified either, use `atom:author`
+    of the feed itself. This is dictated by RFC 4287 §4.2.1 (#2256) (Lysander
+    Trischler)
+
 ### Security
+
+- Remove transitive dependency on the vulnerable `time` 0.1 crate:
+    CVE-2020-26235 https://osv.dev/vulnerability/RUSTSEC-2020-0071 (#2288)
+    (Alexander Batischev, thanks to the prod from critkitten)
+
+
+
+## 2.29 - 2022-09-25
+
+### Added
+
+- New placeholder for `browser`, `%t`, which is replaced by the type of the URL
+    (#1954) (blank X)
+- contrib: a script to reorder lines in the `urls` file (#1918) (T3SQ8)
+- Support for Brotli compression. In fact, Newsboat will now use all the methods
+    supported by the libcurl it's linked to (#2152) (Dennis van der Schagt)
+- In tags dialog, put the cursor on the currently selected tag, or the first tag
+    if none is selected at the moment (#2093) (Dennis van der Schagt)
+
+### Changed
+
+- When rendering an article, put a newline between consecutive `<audio>` and
+    `<video>` tags (#2103) (blank X)
+- When `select-filter` is used with an argument (e.g. from a macro), that
+  argument is now used to look up a predefined filter by name. The old
+  behaviour (applying the argument as filter) is still available by using
+  `set-filter` instead (#2137) (Dennis van der Schagt)
+- When `select-filter` is used without an argument, it will now open the filter
+  selection dialog. Previously, `set-filter` from a macro without arguments
+  was ignored in the article list (#2137) (Dennis van der Schagt)
+- Docs: use a new style for keys. It should be more readable than the old one,
+    please file issues if you disagree! (#2028) (Dennis van der Schagt)
+- When reloading feeds in parallel, status line now shows the progress rather
+    than the number of the currently reloaded feed (#2065) (Juho Eerola)
+- Updated translations: Dutch (Dennis van der Schagt), French (Tonus), German
+    (Lysander Trischler), Italian (Mauro Scomparin), Polish (Carno), Russian and
+    Ukrainian (Alexander Batischev), Spanish (Roboron3042), Turkish (Emir SARI)
+- Bumped minimum supported Rust version to 1.59.0
+- Bumped minimum supported GNU Make version to 4.0 (released on
+    October 9th, 2013)
+- Updated vendored libraries: expected-lite to 0.6.2, json.hpp to 3.11.2
+
+### Fixed
+
+- Segfault on `sqlite3DbMallocRawNN` (#1980) (Juho Eerola)
+- Scrolling when toggling `show-read-feeds` (#2138) (Dennis van der Schagt)
+- Feeds not reloading in parallel when reloading only visible feeds (#2067)
+    (Juho Eerola)
 
 
 

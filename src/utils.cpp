@@ -386,6 +386,22 @@ std::string utils::replace_all(const std::string& str,
 	return output;
 }
 
+std::string utils::preserve_quotes(const std::string& str)
+{
+	std::string escaped_string = "";
+	std::vector<std::string> string_tokenized = tokenize_spaced(str, "'");
+	for (std::string string_chunk : string_tokenized) {
+		if (string_chunk[0] == '\'') {
+			for (size_t i = 0; i < string_chunk.length(); i++) {
+				escaped_string += "\\\'";
+			}
+		} else {
+			escaped_string += "'" + string_chunk + "'";
+		}
+	}
+	return escaped_string;
+}
+
 std::wstring utils::str2wstr(const std::string& str)
 {
 	const char* codeset = nl_langinfo(CODESET);
@@ -585,7 +601,8 @@ void utils::set_common_curl_options(CurlHandle& handle, ConfigContainer* cfg)
 	}
 
 	curl_easy_setopt(handle.ptr(), CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(handle.ptr(), CURLOPT_ENCODING, "gzip, deflate");
+	// Accept all of curl's built-in encodings
+	curl_easy_setopt(handle.ptr(), CURLOPT_ACCEPT_ENCODING, "");
 
 	curl_easy_setopt(handle.ptr(), CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(handle.ptr(), CURLOPT_MAXREDIRS, 10);

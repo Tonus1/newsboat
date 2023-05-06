@@ -1,10 +1,12 @@
 #include "selectformaction.h"
 
+#include <algorithm>
 #include <cassert>
 #include <sstream>
 #include <string>
 
 #include "config.h"
+#include "controller.h"
 #include "fmtstrformatter.h"
 #include "listformatter.h"
 #include "strprintf.h"
@@ -25,7 +27,9 @@ SelectFormAction::SelectFormAction(View* vv,
 	ConfigContainer* cfg)
 	: FormAction(vv, formstr, cfg)
 	, quit(false)
+	, is_first_draw(true)
 	, type(SelectionType::TAG)
+	, value("")
 	, tags_list("taglist", FormAction::f, cfg->get_configvalue_as_int("scrolloff"))
 {
 }
@@ -54,24 +58,10 @@ bool SelectFormAction::process_operation(Operation op,
 	bool hardquit = false;
 	switch (op) {
 	case OP_PREV:
-	case OP_SK_UP:
 		tags_list.move_up(cfg->get_configvalue_as_bool("wrap-scroll"));
 		break;
 	case OP_NEXT:
-	case OP_SK_DOWN:
 		tags_list.move_down(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_HOME:
-		tags_list.move_to_first();
-		break;
-	case OP_SK_END:
-		tags_list.move_to_last();
-		break;
-	case OP_SK_PGUP:
-		tags_list.move_page_up(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_PGDOWN:
-		tags_list.move_page_down(cfg->get_configvalue_as_bool("wrap-scroll"));
 		break;
 	case OP_CMD_START_1:
 		FormAction::start_cmdline("1");
@@ -132,6 +122,9 @@ bool SelectFormAction::process_operation(Operation op,
 	}
 	break;
 	default:
+		if (handle_list_operations(tags_list, op)) {
+			break;
+		}
 		break;
 	}
 
@@ -144,7 +137,6 @@ bool SelectFormAction::process_operation(Operation op,
 	}
 	return true;
 }
-
 void SelectFormAction::prepare()
 {
 	if (do_redraw) {
@@ -180,6 +172,15 @@ void SelectFormAction::prepare()
 		}
 		tags_list.stfl_replace_lines(listfmt);
 
+		if (is_first_draw && type == SelectionType::TAG && !value.empty()) {
+			const auto it = std::find(tags.begin(), tags.end(), value);
+			if (it != tags.end()) {
+				const auto index = std::distance(tags.begin(), it);
+				tags_list.set_position(index);
+			}
+		}
+
+		is_first_draw = false;
 		do_redraw = false;
 	}
 }
@@ -188,7 +189,6 @@ void SelectFormAction::init()
 {
 	do_redraw = true;
 	quit = false;
-	value = "";
 
 	recalculate_widget_dimensions();
 

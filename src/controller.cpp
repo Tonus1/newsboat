@@ -31,10 +31,10 @@
 #include "configexception.h"
 #include "configpaths.h"
 #include "dbexception.h"
-#include "downloadthread.h"
 #include "exception.h"
 #include "feedhqapi.h"
 #include "feedhqurlreader.h"
+#include "formaction.h"
 #include "freshrssapi.h"
 #include "freshrssurlreader.h"
 #include "fileurlreader.h"
@@ -108,12 +108,19 @@ int Controller::run(const CliArgsParser& args)
 
 	refresh_on_start = args.refresh_on_start();
 
+	if (args.log_level().has_value()) {
+		logger::set_loglevel(args.log_level().value());
+	}
+
 	if (args.log_file().has_value()) {
 		logger::set_logfile(args.log_file().value());
 	}
 
-	if (args.log_level().has_value()) {
-		logger::set_loglevel(args.log_level().value());
+	if (!args.log_file().has_value() && args.log_level().has_value()) {
+		const std::string date_time_string = utils::mt_strf_localtime("%Y-%m-%d_%H.%M.%S",
+				std::time(nullptr));
+		const std::string filename = "newsboat_" + date_time_string + ".log";
+		logger::set_logfile(filename);
 	}
 
 	if (!args.display_msg().empty()) {
@@ -317,13 +324,16 @@ int Controller::run(const CliArgsParser& args)
 		const std::string pass = cfg.get_configvalue("miniflux-password");
 		const std::string pass_file = cfg.get_configvalue("miniflux-passwordfile");
 		const std::string pass_eval = cfg.get_configvalue("miniflux-passwordeval");
-		const bool creds_set = !user.empty() &&
-			(!pass.empty() || !pass_file.empty() || !pass_eval.empty());
+		const std::string token = cfg.get_configvalue("miniflux-token");
+		const std::string token_file = cfg.get_configvalue("miniflux-tokenfile");
+		const std::string token_eval = cfg.get_configvalue("miniflux-tokeneval");
+		const bool creds_set = !token.empty()
+			|| !token_file.empty()
+			|| !token_eval.empty()
+			|| (!user.empty() && (!pass.empty() || !pass_file.empty() || !pass_eval.empty()));
 		if (!creds_set) {
 			std::cerr <<
-				_("ERROR: You must set `miniflux-login` and one of `miniflux-password`, "
-					"`miniflux-passwordfile` or `miniflux-passwordeval` to use "
-					"Miniflux\n");
+				_("ERROR: You must provide an API token or a login/password pair to use Miniflux. Please set the appropriate miniflux-* settings\n");
 			return EXIT_FAILURE;
 		}
 
@@ -555,13 +565,19 @@ int Controller::run(const CliArgsParser& args)
 		std::cout.flush();
 	}
 	try {
-		const std::uint64_t amt = rsscache->cleanup_cache(
+		const auto unreachable_feeds = rsscache->cleanup_cache(
 				feedcontainer.get_all_feeds());
 		if (!args.silent()) {
 			std::cout << _("done.") << std::endl;
-			if (amt > 0u) {
-				std::cout << _("Unreachable feeds found, consider setting "
-						"`cleanup-on-quit yes` or run `newsboat --cleanup`")
+			if (!unreachable_feeds.empty()) {
+				for (const auto& feed : unreachable_feeds) {
+					LOG(Level::USERERROR, "Unreachable feed found: %s", feed);
+				}
+
+				// Workaround for missing overload of strprintf::fmt for size_type on macOS.
+				std::uint64_t num_feeds = unreachable_feeds.size();
+				std::cout << strprintf::fmt(_("%" PRIu64 " unreachable feeds found. See "
+							"`cleanup-on-quit` in newsboat(1) for details."), num_feeds)
 					<< std::endl;
 			}
 		}

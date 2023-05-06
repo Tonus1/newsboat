@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "confighandlerexception.h"
+#include "controller.h"
 #include "dbexception.h"
 #include "fmtstrformatter.h"
 #include "itemlistformaction.h"
@@ -199,6 +200,12 @@ bool ItemViewFormAction::process_operation(Operation op,
 	case OP_SK_PGDOWN:
 		textview.scroll_page_down();
 		break;
+	case OP_SK_HALF_PAGE_UP:
+		textview.scroll_halfpage_up();
+		break;
+	case OP_SK_HALF_PAGE_DOWN:
+		textview.scroll_halfpage_down();
+		break;
 	case OP_TOGGLESOURCEVIEW:
 		LOG(Level::INFO, "ItemViewFormAction::process_operation: toggling source view");
 		show_source = !show_source;
@@ -238,13 +245,13 @@ bool ItemViewFormAction::process_operation(Operation op,
 	case OP_OPENBROWSER_AND_MARK: {
 		LOG(Level::INFO, "ItemViewFormAction::process_operation: starting browser");
 		const bool interactive = true;
-		return open_link_in_browser(item->link(), "article", interactive);
+		return open_link_in_browser(item->link(), "article", item->title(), interactive);
 	}
 	break;
 	case OP_OPENINBROWSER_NONINTERACTIVE: {
 		LOG(Level::INFO, "ItemViewFormAction::process_operation: starting browser");
 		const bool interactive = false;
-		return open_link_in_browser(item->link(), "article", interactive);
+		return open_link_in_browser(item->link(), "article", item->title(), interactive);
 	}
 	break;
 	case OP_BOOKMARK:
@@ -440,7 +447,7 @@ bool ItemViewFormAction::process_operation(Operation op,
 		if (idx < links.size()) {
 			const bool interactive = true;
 			return open_link_in_browser(links[idx].first, utils::link_type_str(links[idx].second),
-					interactive);
+					item->title(), interactive);
 		}
 	}
 	break;
@@ -455,6 +462,20 @@ bool ItemViewFormAction::process_operation(Operation op,
 		} else {
 			qna.push_back(QnaPair(_("Goto URL #"), ""));
 			this->start_qna(qna, OP_INT_GOTO_URL);
+		}
+	}
+	break;
+	case OP_ARTICLEFEED: {
+		auto feeds = v->get_ctrl()->get_feedcontainer()->get_all_feeds();
+		size_t pos;
+		auto article_feed = item->get_feedptr();
+		for (pos = 0; pos < feeds.size(); pos++) {
+			if (feeds[pos] == article_feed) {
+				break;
+			}
+		}
+		if (pos != feeds.size()) {
+			v->push_itemlist(pos);
 		}
 	}
 	break;
@@ -483,10 +504,10 @@ bool ItemViewFormAction::process_operation(Operation op,
 }
 
 bool ItemViewFormAction::open_link_in_browser(const std::string& link,
-	const std::string& type, bool interactive) const
+	const std::string& type, const std::string& title, bool interactive) const
 {
 	const std::string feedurl = item->feedurl();
-	const auto exit_code = v->open_in_browser(link, feedurl, type, interactive);
+	const auto exit_code = v->open_in_browser(link, feedurl, type, title, interactive);
 	if (!exit_code.has_value()) {
 		v->get_statusline().show_error(_("Failed to spawn browser"));
 		return false;
@@ -608,7 +629,7 @@ void ItemViewFormAction::finished_qna(Operation op)
 		if (idx && idx - 1 < links.size()) {
 			const bool interactive = true;
 			open_link_in_browser(links[idx - 1].first, utils::link_type_str(links[idx - 1].second),
-				interactive);
+				item->title(), interactive);
 		}
 	}
 	break;

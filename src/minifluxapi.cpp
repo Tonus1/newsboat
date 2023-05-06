@@ -35,7 +35,23 @@ bool MinifluxApi::authenticate()
 {
 	// error check handled in Controller
 	const Credentials creds = get_credentials("miniflux", "");
-	auth_info = strprintf::fmt("%s:%s", creds.user, creds.pass);
+	if (!creds.token.empty()) {
+		auth_token = creds.token;
+		auth_info = "";
+	} else {
+		auth_token = "";
+		auth_info = strprintf::fmt("%s:%s", creds.user, creds.pass);
+	}
+
+	CurlHandle handle;
+	long response_code = 0;
+	run_op("/v1/me", json(), handle);
+	curl_easy_getinfo(handle.ptr(), CURLINFO_RESPONSE_CODE, &response_code);
+
+	if (response_code == 401) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -233,6 +249,14 @@ json MinifluxApi::run_op(const std::string& path,
 	// follow redirects and keep the same request type
 	curl_easy_setopt(easyhandle.ptr(), CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(easyhandle.ptr(), CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
+
+	if (!auth_token.empty()) {
+		std::string header = "X-Auth-Token: " + auth_token;
+
+		curl_slist* headers = NULL;
+		headers = curl_slist_append(headers, header.c_str());
+		curl_easy_setopt(easyhandle.ptr(), CURLOPT_HTTPHEADER, headers);
+	}
 
 	const std::string url = server + path;
 

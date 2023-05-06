@@ -39,24 +39,10 @@ bool UrlViewFormAction::process_operation(Operation op,
 	bool hardquit = false;
 	switch (op) {
 	case OP_PREV:
-	case OP_SK_UP:
 		urls_list.move_up(cfg->get_configvalue_as_bool("wrap-scroll"));
 		break;
 	case OP_NEXT:
-	case OP_SK_DOWN:
 		urls_list.move_down(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_HOME:
-		urls_list.move_to_first();
-		break;
-	case OP_SK_END:
-		urls_list.move_to_last();
-		break;
-	case OP_SK_PGUP:
-		urls_list.move_page_up(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_PGDOWN:
-		urls_list.move_page_down(cfg->get_configvalue_as_bool("wrap-scroll"));
 		break;
 	case OP_OPENINBROWSER:
 	case OP_OPENBROWSER_AND_MARK:
@@ -95,7 +81,7 @@ bool UrlViewFormAction::process_operation(Operation op,
 			const std::string feedurl = (feed != nullptr ?  feed->rssurl() : "");
 			const bool interactive = true;
 			v->open_in_browser(links[idx].first, feedurl, utils::link_type_str(links[idx].second),
-				interactive);
+				feed->title(), interactive);
 		}
 	}
 	break;
@@ -108,7 +94,10 @@ bool UrlViewFormAction::process_operation(Operation op,
 	case OP_HARDQUIT:
 		hardquit = true;
 		break;
-	default: // nothing
+	default:
+		if (handle_list_operations(urls_list, op)) {
+			break;
+		}
 		break;
 	}
 	if (hardquit) {
@@ -127,7 +116,7 @@ void UrlViewFormAction::open_current_position_in_browser(bool interactive)
 		const unsigned int pos = urls_list.get_position();
 		const std::string feedurl = (feed != nullptr ?  feed->rssurl() : "");
 		v->open_in_browser(links[pos].first, feedurl, utils::link_type_str(links[pos].second),
-			interactive);
+			feed->title(), interactive);
 	} else {
 		v->get_statusline().show_error(_("No links available!"));
 	}

@@ -48,6 +48,12 @@ public:
 
 	void mark_pos_if_visible(unsigned int pos);
 
+protected:
+	std::string main_widget() const override
+	{
+		return "feeds";
+	}
+
 private:
 	void register_format_styles();
 
@@ -87,7 +93,8 @@ private:
 	std::string tag;
 
 	Matcher matcher;
-	bool apply_filter;
+	bool filter_active;
+	void apply_filter(const std::string& filter_query);
 
 	History filterhistory;
 
@@ -96,7 +103,7 @@ private:
 
 	RegexManager& rxman;
 
-	FilterContainer& filters;
+	FilterContainer& filter_container;
 
 	nonstd::optional<FeedSortStrategy> old_sort_strategy;
 

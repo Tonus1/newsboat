@@ -33,7 +33,7 @@ ItemListFormAction::ItemListFormAction(View* vv,
 	RegexManager& r)
 	: ListFormAction(vv, formstr, "items", cfg)
 	, old_itempos(-1)
-	, apply_filter(false)
+	, filter_active(false)
 	, pos(0)
 	, set_filterpos(false)
 	, filterpos(0)
@@ -42,7 +42,7 @@ ItemListFormAction::ItemListFormAction(View* vv,
 	, invalidation_mode(InvalidationMode::NONE)
 	, listfmt(&rxman, "articlelist")
 	, rsscache(cc)
-	, filters(f)
+	, filter_container(f)
 {
 	register_format_styles();
 }
@@ -492,7 +492,7 @@ bool ItemListFormAction::process_operation(Operation op,
 				}
 				rsscache->mark_items_read_by_guid(guids);
 
-				if (apply_filter) {
+				if (filter_active) {
 					// We're only viewing a subset of items, so mark them off one by one.
 					v->get_ctrl()->mark_all_read(guids);
 				} else {
@@ -617,36 +617,21 @@ bool ItemListFormAction::process_operation(Operation op,
 		v->get_ctrl()->edit_urls_file();
 		break;
 	case OP_SELECTFILTER:
-		if (filters.size() > 0) {
+		if (filter_container.size() > 0) {
 			std::string newfilter;
-			if (automatic) {
-				if (args->size() > 0) {
-					newfilter = (*args)[0];
+			if (automatic && args->size() > 0) {
+				const std::string filter_name = (*args)[0];
+				const auto filter = filter_container.get_filter(filter_name);
+
+				if (filter.has_value()) {
+					apply_filter(filter.value());
+				} else {
+					v->get_statusline().show_error(strprintf::fmt(_("No filter found with name `%s'."),
+							filter_name));
 				}
 			} else {
-				newfilter = v->select_filter(
-						filters.get_filters());
-				LOG(Level::DEBUG,
-					"ItemListFormAction::run: newfilters "
-					"= %s",
-					newfilter);
-			}
-			if (newfilter != "") {
-				filterhistory.add_line(newfilter);
-				if (newfilter.length() > 0) {
-					if (!matcher.parse(newfilter)) {
-						v->get_statusline().show_error(strprintf::fmt(
-								_("Error: couldn't "
-									"parse filter "
-									"expression `%s': %s"),
-								newfilter,
-								matcher.get_parse_error()));
-					} else {
-						apply_filter = true;
-						invalidate_list();
-						save_filterpos();
-					}
-				}
+				const std::string filter_text = v->select_filter(filter_container.get_filters());
+				apply_filter(filter_text);
 			}
 		} else {
 			v->get_statusline().show_error(_("No filters defined."));
@@ -668,7 +653,7 @@ bool ItemListFormAction::process_operation(Operation op,
 		}
 		break;
 	case OP_CLEARFILTER:
-		apply_filter = false;
+		filter_active = false;
 		invalidate_list();
 		save_filterpos();
 		break;
@@ -762,6 +747,20 @@ bool ItemListFormAction::process_operation(Operation op,
 			return false;
 		}
 		break;
+	case OP_ARTICLEFEED: {
+		auto feeds = v->get_ctrl()->get_feedcontainer()->get_all_feeds();
+		size_t pos;
+		auto article_feed = visible_items[itempos].first->get_feedptr();
+		for (pos = 0; pos < feeds.size(); pos++) {
+			if (feeds[pos] == article_feed) {
+				break;
+			}
+		}
+		if (pos != feeds.size()) {
+			v->push_itemlist(pos);
+		}
+	}
+	break;
 	default:
 		ListFormAction::process_operation(op, automatic, args);
 		break;
@@ -787,7 +786,8 @@ bool ItemListFormAction::open_position_in_browser(
 		const auto item = visible_items[pos].first;
 		const auto link = item->link();
 		const auto feedurl = item->feedurl();
-		const auto exit_code = v->open_in_browser(link, feedurl, "article", interactive);
+		const auto exit_code = v->open_in_browser(link, feedurl, "article", item->title(),
+				interactive);
 		if (!exit_code.has_value()) {
 			v->get_statusline().show_error(_("Failed to spawn browser"));
 			return false;
@@ -853,20 +853,7 @@ void ItemListFormAction::finished_qna(Operation op)
 void ItemListFormAction::qna_end_setfilter()
 {
 	std::string filtertext = qna_responses[0];
-	filterhistory.add_line(filtertext);
-
-	if (filtertext.length() > 0) {
-		if (!matcher.parse(filtertext)) {
-			v->get_statusline().show_error(strprintf::fmt(
-					_("Error: couldn't parse filter expression `%s': %s"),
-					filtertext, matcher.get_parse_error()));
-			return;
-		}
-
-		apply_filter = true;
-		invalidate_list();
-		save_filterpos();
-	}
+	apply_filter(filtertext);
 }
 
 void ItemListFormAction::qna_end_editflags()
@@ -944,7 +931,7 @@ void ItemListFormAction::do_update_visible_items()
 	for (const auto& item : items) {
 		item->set_index(i + 1);
 		if ((show_read || item->unread()) &&
-			(!apply_filter || matcher.matches(item.get()))) {
+			(!filter_active || matcher.matches(item.get()))) {
 			new_visible_items.push_back(ItemPtrPosPair(item, i));
 		}
 		i++;
@@ -1193,7 +1180,7 @@ FmtStrFormatter ItemListFormAction::setup_head_formatter(const std::string& s,
 
 	fmt.register_fmt('U', utils::censor_url(url));
 
-	fmt.register_fmt('F', apply_filter ? matcher.get_expression() : "");
+	fmt.register_fmt('F', filter_active ? matcher.get_expression() : "");
 
 	return fmt;
 }
@@ -1452,7 +1439,7 @@ void ItemListFormAction::register_format_styles()
 {
 	const std::string attrstr = rxman.get_attrs_stfl_string("articlelist", true);
 	const std::string textview = strprintf::fmt(
-			"{list[items] .expand:vh style_normal[listnormal]: "
+			"{!list[items] .expand:vh style_normal[listnormal]: "
 			"style_focus[listfocus]:fg=yellow,bg=blue,attr=bold "
 			"pos[items_pos]:0 offset[items_offset]:0 %s richtext:1}",
 			attrstr);
@@ -1614,6 +1601,25 @@ void ItemListFormAction::handle_op_saveall()
 			// Create file since it does not exist
 			save_article(filepath, item);
 		}
+	}
+}
+
+void ItemListFormAction::apply_filter(const std::string& filtertext)
+{
+	if (filtertext.empty()) {
+		return;
+	}
+
+	filterhistory.add_line(filtertext);
+	if (!matcher.parse(filtertext)) {
+		v->get_statusline().show_error(strprintf::fmt(
+				_("Error: couldn't parse filter expression `%s': %s"),
+				filtertext,
+				matcher.get_parse_error()));
+	} else {
+		save_filterpos();
+		filter_active = true;
+		invalidate_list();
 	}
 }
 

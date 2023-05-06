@@ -1,3 +1,5 @@
+:experimental:
+
 Several aspects of Newsboat can be configured via a _config_ file,
 which is stored next to the _urls_ file.
 A configuration line looks like this in general:
@@ -26,6 +28,22 @@ show-read-feeds  no
 
 unbind-key       R
 bind-key         ^R    reload-all
+----
+
+=== Splitting long lines into multiple ones
+
+Configuration items, such as macros defined in config files which are long can be split
+up into multiple ones using backslashes; these must be the last character on the line and will
+immediately concatenate it with the following line. It's important that _nothing_
+follows the `{backslash}` on the same line, otherwise the `{backslash}` character is treated "as is".
+
+Dummy example:
+
+----
+macro p open; \
+reload; quit; \
+quit;         \
+quit -- "Opens, reloads then makes sure to quit newsboat"
 ----
 
 === Using Double Quotes
@@ -86,8 +104,8 @@ The syntax for a key binding looks like this:
 
 Lowercase keys, uppercase keys and special characters are written literally.
 
-Key combinations with `Ctrl` are written using the caret `^`.
-For instance `Ctrl-R` equals to `^R`.
+Key combinations with kbd:[Ctrl] are written using the caret `^`.
+For instance kbd:[Ctrl+R] equals to `^R`.
 Please be aware that all Ctrl-related key combinations need to be written in uppercase.
 
 The following identifiers for special keys are supported:

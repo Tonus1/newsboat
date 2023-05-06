@@ -117,9 +117,7 @@ unsafe fn regex_error_to_str(errcode: libc::c_int, regex: &regex_t) -> Option<St
     let errmsg_length = regerror(errcode, regex, ptr::null_mut(), 0);
 
     // Allocate the buffer and get the message.
-    // Casting u64 to usize is safe since the error message is unlikely to hit usize's
-    // upper bound.
-    let mut errmsg: Vec<u8> = vec![0; errmsg_length as usize];
+    let mut errmsg: Vec<u8> = vec![0; errmsg_length];
     // Casting `*mut u8` to `*mut c_char` should be safe since C doesn't really care:
     // it can store any ASCII symbol in a `char`, disregarding signedness.
     regerror(
@@ -159,7 +157,7 @@ impl Regex {
                 match regex_error_to_str(errcode, &regex) {
                     Some(regcomp_errmsg) => {
                         let msg = fmt!(&gettext("regcomp returned code %i"), errcode);
-                        let msg = format!("{}: {}", msg, regcomp_errmsg);
+                        let msg = format!("{msg}: {regcomp_errmsg}");
                         Err(msg)
                     }
 
@@ -244,7 +242,7 @@ impl Regex {
                 match regex_error_to_str(errcode, &self.regex) {
                     Some(regexec_errmsg) => {
                         let msg = fmt!(&gettext("regexec returned code %i"), errcode);
-                        let msg = format!("{}: {}", msg, regexec_errmsg);
+                        let msg = format!("{msg}: {regexec_errmsg}");
                         Err(msg)
                     }
                     None => Err(fmt!(&gettext("regexec returned code %i"), errcode)),

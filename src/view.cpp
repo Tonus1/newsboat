@@ -24,14 +24,20 @@ extern "C" {
 }
 
 #include "config.h"
+#include "colormanager.h"
+#include "controller.h"
+#include "configcontainer.h"
 #include "dbexception.h"
 #include "dialogs.h"
 #include "dialogsformaction.h"
+#include "dirbrowserformaction.h"
 #include "emptyformaction.h"
 #include "empty.h"
 #include "exception.h"
 #include "feedlist.h"
+#include "feedlistformaction.h"
 #include "filebrowser.h"
+#include "filebrowserformaction.h"
 #include "fmtstrformatter.h"
 #include "formaction.h"
 #include "help.h"
@@ -182,7 +188,7 @@ int View::run()
 
 		if (ctrl_c_hit) {
 			ctrl_c_hit = false;
-			cancel_input(fa);
+			fa->cancel_qna();
 			if (!get_cfg()->get_configvalue_as_bool(
 					"confirm-exit") ||
 				confirm(_("Do you really want to quit "
@@ -362,7 +368,8 @@ void View::open_in_pager(const std::string& filename)
 }
 
 nonstd::optional<std::uint8_t> View::open_in_browser(const std::string& url,
-	const std::string& feedurl, const std::string& type, bool interactive)
+	const std::string& feedurl, const std::string& type, const std::string& title,
+	bool interactive)
 {
 	std::string cmdline;
 	const std::string browser = cfg->get_configvalue("browser");
@@ -370,14 +377,17 @@ nonstd::optional<std::uint8_t> View::open_in_browser(const std::string& url,
 	const std::string escaped_feedurl = "'" + utils::replace_all(feedurl, "'",
 			"%27") + "'";
 	const std::string quoted_type = "'" + type + "'";
+	const std::string escaped_title = utils::preserve_quotes(title);
 
 	if (browser.find("%u") != std::string::npos
 		|| browser.find("%F") != std::string::npos
-		|| browser.find("%t") != std::string::npos) {
+		|| browser.find("%t") != std::string::npos
+		|| browser.find("%T") != std::string::npos) {
 		cmdline = utils::replace_all(browser, {
 			{"%u", escaped_url},
 			{"%F", escaped_feedurl},
-			{"%t", quoted_type}
+			{"%t", quoted_type},
+			{"%T", escaped_title}
 		});
 	} else {
 		if (browser != "") {
@@ -475,11 +485,7 @@ std::shared_ptr<ItemListFormAction> View::push_itemlist(
 
 	feed->purge_deleted_items();
 
-	try {
-		prepare_query_feed(feed);
-	} catch (const MatcherException& e) {
-		const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-		status_line.show_error(msg);
+	if (!try_prepare_query_feed(feed)) {
 		return nullptr;
 	}
 
@@ -626,7 +632,7 @@ std::string View::run_dirbrowser()
 	return run_modal(dirbrowser, "filenametext");
 }
 
-std::string View::select_tag()
+std::string View::select_tag(const std::string& current_tag)
 {
 	if (tags.size() == 0) {
 		status_line.show_error(_("No tags defined."));
@@ -638,6 +644,7 @@ std::string View::select_tag()
 	apply_colors(selecttag);
 	selecttag->set_parent_formaction(get_current_formaction());
 	selecttag->set_tags(tags);
+	selecttag->set_selected_value(current_tag);
 	run_modal(selecttag, "");
 	return selecttag->get_selected_value();
 }
@@ -725,11 +732,7 @@ bool View::get_random_unread(ItemListFormAction& itemlist,
 		LOG(Level::DEBUG,
 			"View::get_random_unread: found feed with unread "
 			"articles");
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -772,11 +775,7 @@ bool View::get_previous_unread(ItemListFormAction& itemlist,
 		LOG(Level::DEBUG,
 			"View::get_previous_unread: found feed with unread "
 			"articles");
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -798,11 +797,7 @@ bool View::get_next_unread_feed(ItemListFormAction& itemlist)
 {
 	unsigned int feedpos;
 	if (feedlist_form->jump_to_next_unread_feed(feedpos)) {
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -817,11 +812,7 @@ bool View::get_prev_unread_feed(ItemListFormAction& itemlist)
 {
 	unsigned int feedpos;
 	if (feedlist_form->jump_to_previous_unread_feed(feedpos)) {
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -855,11 +846,7 @@ bool View::get_next_unread(ItemListFormAction& itemlist,
 		LOG(Level::DEBUG,
 			"View::get_next_unread: found feed with unread "
 			"articles");
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -894,11 +881,7 @@ bool View::get_previous(ItemListFormAction& itemlist,
 		status_line.show_error(_("Already on first item."));
 	} else if (feedlist_form->jump_to_previous_feed(feedpos)) {
 		LOG(Level::DEBUG, "View::get_previous: previous feed");
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -932,11 +915,7 @@ bool View::get_next(ItemListFormAction& itemlist, ItemViewFormAction* itemview)
 		status_line.show_error(_("Already on last item."));
 	} else if (feedlist_form->jump_to_next_feed(feedpos)) {
 		LOG(Level::DEBUG, "View::get_next: next feed");
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -958,11 +937,7 @@ bool View::get_next_feed(ItemListFormAction& itemlist)
 {
 	unsigned int feedpos;
 	if (feedlist_form->jump_to_next_feed(feedpos)) {
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -977,11 +952,7 @@ bool View::get_prev_feed(ItemListFormAction& itemlist)
 {
 	unsigned int feedpos;
 	if (feedlist_form->jump_to_previous_feed(feedpos)) {
-		try {
-			prepare_query_feed(feedlist_form->get_feed());
-		} catch (const MatcherException& e) {
-			const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
-			status_line.show_error(msg);
+		if (!try_prepare_query_feed(feedlist_form->get_feed())) {
 			return false;
 		}
 		itemlist.set_feed(feedlist_form->get_feed());
@@ -1004,6 +975,18 @@ void View::prepare_query_feed(std::shared_ptr<RssFeed> feed)
 		feed->update_items(ctrl->get_feedcontainer()->get_all_feeds());
 		feed->sort(cfg->get_article_sort_strategy());
 		notify_itemlist_change(feed);
+	}
+}
+
+bool View::try_prepare_query_feed(std::shared_ptr<RssFeed> feed)
+{
+	try {
+		prepare_query_feed(feed);
+		return true;
+	} catch (const MatcherException& e) {
+		const auto msg = strprintf::fmt(_("Error: couldn't prepare query feed: %s"), e.what());
+		status_line.show_error(msg);
+		return false;
 	}
 }
 
@@ -1183,12 +1166,6 @@ void View::clear_eol(std::shared_ptr<FormAction> fa)
 	LOG(Level::DEBUG, "View::clear_eol: cleared to end of line");
 }
 
-void View::cancel_input(std::shared_ptr<FormAction> fa)
-{
-	fa->process_op(OP_INT_CANCEL_QNA);
-	LOG(Level::DEBUG, "View::cancel_input: cancelled input");
-}
-
 void View::delete_word(std::shared_ptr<FormAction> fa)
 {
 	std::string::size_type curpos =
@@ -1226,19 +1203,25 @@ bool View::handle_qna_event(const std::string& event,
 			handle_cmdline_completion(fa);
 			return true;
 		}
-		if (event == "^U") {
+		if (event == "ESC") {
+			fa->cancel_qna();
+		} else if (event == "UP") {
+			fa->qna_previous_history();
+		} else if (event == "DOWN") {
+			fa->qna_next_history();
+		} else if (event == "ENTER") {
+			fa->finish_qna_question();
+		} else if (event == "^U") {
 			clear_line(fa);
-			return true;
 		} else if (event == "^K") {
 			clear_eol(fa);
-			return true;
 		} else if (event == "^G") {
-			cancel_input(fa);
-			return true;
+			fa->cancel_qna();
 		} else if (event == "^W") {
 			delete_word(fa);
-			return true;
 		}
+
+		return true;
 	}
 	return false;
 }

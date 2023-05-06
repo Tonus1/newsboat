@@ -52,6 +52,12 @@ public:
 
 	void update_percent();
 
+protected:
+	std::string main_widget() const override
+	{
+		return "article";
+	}
+
 private:
 	void register_format_styles();
 
@@ -60,7 +66,7 @@ private:
 		std::vector<std::string>* args = nullptr) override;
 
 	bool open_link_in_browser(const std::string& link, const std::string& type,
-		bool interactive) const;
+		const std::string& title, bool interactive) const;
 
 	void update_head(const std::shared_ptr<RssItem>& item);
 	void set_head(const std::string& s,

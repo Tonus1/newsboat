@@ -2,30 +2,31 @@
 #define NEWSBOAT_VIEW_H_
 
 #include <cstdint>
-#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #include "3rd-party/optional.hpp"
 
-#include "colormanager.h"
-#include "configcontainer.h"
-#include "controller.h"
-#include "dirbrowserformaction.h"
-#include "feedlistformaction.h"
-#include "filebrowserformaction.h"
 #include "htmlrenderer.h"
-#include "keymap.h"
-#include "regexmanager.h"
 #include "statusline.h"
-#include "stflpp.h"
 
 namespace newsboat {
 
+class Cache;
+class ColorManager;
+class Controller;
+class ConfigContainer;
+class FeedListFormAction;
+class FilterContainer;
+struct FilterNameExprPair;
+class FormAction;
 class ItemListFormAction;
 class ItemViewFormAction;
-class FeedListFormAction;
+class KeyMap;
+struct MacroCmd;
+class RegexManager;
+class RssFeed;
 
 class View : public IStatus {
 public:
@@ -83,12 +84,13 @@ public:
 
 	std::string run_filebrowser(const std::string& default_filename = "");
 	std::string run_dirbrowser();
-	std::string select_tag();
+	std::string select_tag(const std::string& current_tag);
 	std::string select_filter(
 		const std::vector<FilterNameExprPair>& filters);
 
 	nonstd::optional<std::uint8_t> open_in_browser(const std::string& url,
-		const std::string& feedurl, const std::string& type, bool interactive);
+		const std::string& feedurl, const std::string& type, const std::string& title,
+		bool interactive);
 	void open_in_pager(const std::string& filename);
 
 	std::string get_filename_suggestion(const std::string& s);
@@ -146,7 +148,6 @@ protected:
 	void handle_cmdline_completion(std::shared_ptr<FormAction> fa);
 	void clear_line(std::shared_ptr<FormAction> fa);
 	void clear_eol(std::shared_ptr<FormAction> fa);
-	void cancel_input(std::shared_ptr<FormAction> fa);
 	void delete_word(std::shared_ptr<FormAction> fa);
 	bool handle_qna_event(const std::string& event, std::shared_ptr<FormAction> fa);
 	void handle_resize();
@@ -169,8 +170,6 @@ protected:
 
 	RegexManager& rxman;
 
-	std::map<std::string, TextStyle> text_styles;
-
 	bool is_inside_qna;
 	bool is_inside_cmdline;
 
@@ -180,6 +179,9 @@ protected:
 	FilterContainer& filters;
 	const ColorManager& colorman;
 	std::vector<std::string> suggestions;
+
+private:
+	bool try_prepare_query_feed(std::shared_ptr<RssFeed> feed);
 };
 
 } // namespace newsboat

@@ -7,6 +7,9 @@
 
 #include "config.h"
 #include "configexception.h"
+#include "controller.h"
+#include "listmovementcontrol.h"
+#include "listwidgetbackend.h"
 #include "logger.h"
 #include "matcherexception.h"
 #include "strprintf.h"
@@ -128,36 +131,6 @@ bool FormAction::process_op(Operation op,
 				"FormAction::process_op: got OP_INT_SET, but "
 				"not automatic");
 		}
-		break;
-	case OP_INT_CANCEL_QNA:
-		f.modify("lastline",
-			"replace",
-			"{hbox[lastline] .expand:0 {label[msglabel] .expand:h "
-			"text[msg]:\"\"}}");
-		v->inside_qna(false);
-		v->inside_cmdline(false);
-		break;
-	case OP_INT_QNA_NEXTHIST:
-		if (qna_history) {
-			std::string entry = qna_history->next_line();
-			set_value("qna_value", entry);
-			set_value("qna_value_pos", std::to_string(entry.length()));
-		}
-		break;
-	case OP_INT_QNA_PREVHIST:
-		if (qna_history) {
-			std::string entry = qna_history->previous_line();
-			set_value("qna_value", entry);
-			set_value("qna_value_pos", std::to_string(entry.length()));
-		}
-		break;
-	case OP_INT_END_QUESTION:
-		/*
-		 * An answer has been entered, we save the value, and ask the
-		 * next question.
-		 */
-		qna_responses.push_back(get_value("qna_value"));
-		start_next_question();
 		break;
 	case OP_VIEWDIALOGS:
 		v->view_dialogs();
@@ -363,6 +336,39 @@ void FormAction::handle_parsed_command(const Command& command)
 	}
 }
 
+bool FormAction::handle_list_operations(ListWidget& list, Operation op)
+{
+	switch (op) {
+	case OP_SK_UP:
+		list.move_up(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	case OP_SK_DOWN:
+		list.move_down(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	case OP_SK_HOME:
+		list.move_to_first();
+		break;
+	case OP_SK_END:
+		list.move_to_last();
+		break;
+	case OP_SK_PGUP:
+		list.move_page_up(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	case OP_SK_PGDOWN:
+		list.move_page_down(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	case OP_SK_HALF_PAGE_UP:
+		list.scroll_halfpage_up(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	case OP_SK_HALF_PAGE_DOWN:
+		list.scroll_halfpage_down(cfg->get_configvalue_as_bool("wrap-scroll"));
+		break;
+	default:
+		return false;
+	}
+	return false;
+}
+
 bool FormAction::handle_single_argument_set(std::string argument)
 {
 	if (argument.size() >= 1 && argument.back() == '!') {
@@ -407,6 +413,45 @@ void FormAction::start_qna(const std::vector<QnaPair>& prompts,
 	start_next_question();
 }
 
+void FormAction::finish_qna_question()
+{
+	qna_responses.push_back(get_value("qna_value"));
+	start_next_question();
+}
+
+void FormAction::cancel_qna()
+{
+	LOG(Level::DEBUG, "FormAction::cancel_qna");
+
+	f.set("show_qna_label", "0");
+	f.set("show_qna_input", "0");
+	f.set("show_msg", "1");
+	f.set("msg", "");
+
+	f.set_focus(main_widget());
+
+	v->inside_qna(false);
+	v->inside_cmdline(false);
+}
+
+void FormAction::qna_next_history()
+{
+	if (qna_history) {
+		std::string entry = qna_history->next_line();
+		set_value("qna_value", entry);
+		set_value("qna_value_pos", std::to_string(entry.length()));
+	}
+}
+
+void FormAction::qna_previous_history()
+{
+	if (qna_history) {
+		std::string entry = qna_history->previous_line();
+		set_value("qna_value", entry);
+		set_value("qna_value_pos", std::to_string(entry.length()));
+	}
+}
+
 void FormAction::finished_qna(Operation op)
 {
 	v->inside_qna(false);
@@ -443,7 +488,7 @@ void FormAction::finished_qna(Operation op)
 	}
 	break;
 	case OP_INT_END_CMDLINE: {
-		f.set_focus("feeds");
+		f.set_focus(main_widget());
 		std::string cmdline = qna_responses[0];
 		FormAction::cmdlinehistory.add_line(cmdline);
 		LOG(Level::DEBUG, "FormAction: commandline = `%s'", cmdline);
@@ -552,18 +597,13 @@ void FormAction::start_next_question()
 	 * If there is one more prompt to be presented to the user, set it up.
 	 */
 	if (qna_prompts.size() > 0) {
-		std::string replacestr(
-			"{hbox[lastline] .expand:0 {label .expand:0 text:");
-		replacestr.append(Stfl::quote(qna_prompts[0].first));
-		replacestr.append(
-			"}{input[qnainput] on_ESC:cancel-qna "
-			"on_UP:qna-prev-history on_DOWN:qna-next-history "
-			"on_ENTER:end-question modal:1 .expand:h @bind_home:** "
-			"@bind_end:** text[qna_value]:");
-		replacestr.append(Stfl::quote(qna_prompts[0].second));
-		replacestr.append(" pos[qna_value_pos]:0");
-		replacestr.append("}}");
-		f.modify("lastline", "replace", replacestr);
+		f.set("qna_prompt", qna_prompts[0].first);
+		f.set("qna_value", qna_prompts[0].second);
+
+		f.set("show_qna_label", "1");
+		f.set("show_qna_input", "1");
+		f.set("show_msg", "0");
+
 		f.set_focus("qnainput");
 
 		// Set position to 0 and back to ensure that the text is visible
@@ -578,10 +618,13 @@ void FormAction::start_next_question()
 		 * usual label, and signal the end of the "Q&A" to the
 		 * finished_qna() method.
 		 */
-		f.modify("lastline",
-			"replace",
-			"{hbox[lastline] .expand:0 {label[msglabel] .expand:h "
-			"text[msg]:\"\"}}");
+		f.set("show_qna_label", "0");
+		f.set("show_qna_input", "0");
+		f.set("show_msg", "1");
+		f.set("msg", "");
+
+		f.set_focus(main_widget());
+
 		this->finished_qna(finish_operation);
 	}
 }

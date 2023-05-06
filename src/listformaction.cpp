@@ -1,5 +1,6 @@
 #include "listformaction.h"
 
+#include "controller.h"
 #include "rssfeed.h"
 #include "view.h"
 
@@ -47,25 +48,10 @@ bool ListFormAction::process_operation(Operation op,
 		FormAction::start_cmdline("9");
 		break;
 
-	case OP_SK_UP:
-		list.move_up(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_DOWN:
-		list.move_down(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_HOME:
-		list.move_to_first();
-		break;
-	case OP_SK_END:
-		list.move_to_last();
-		break;
-	case OP_SK_PGUP:
-		list.move_page_up(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
-	case OP_SK_PGDOWN:
-		list.move_page_down(cfg->get_configvalue_as_bool("wrap-scroll"));
-		break;
 	default:
+		if (handle_list_operations(list, op)) {
+			break;
+		}
 		break;
 	}
 	return true;
@@ -84,7 +70,7 @@ nonstd::optional<std::uint8_t> ListFormAction::open_unread_items_in_browser(
 			if (item->unread()) {
 				const bool interactive = true;
 				const auto exit_code = v->open_in_browser(item->link(), item->feedurl(),
-						"article", interactive);
+						"article", item->title(), interactive);
 				if (!exit_code.has_value() || *exit_code != 0) {
 					return_value = exit_code;
 					break;

@@ -5,6 +5,7 @@
 
 #include "3rd-party/optional.hpp"
 
+#include "configcontainer.h"
 #include "fmtstrformatter.h"
 #include "history.h"
 #include "listformaction.h"
@@ -13,6 +14,8 @@
 #include "view.h"
 
 namespace newsboat {
+
+class RssItem;
 
 typedef std::pair<std::shared_ptr<RssItem>, unsigned int> ItemPtrPosPair;
 
@@ -70,6 +73,10 @@ protected:
 	bool process_operation(Operation op,
 		bool automatic = false,
 		std::vector<std::string>* args = nullptr) override;
+	std::string main_widget() const override
+	{
+		return "items";
+	}
 
 	void invalidate(const unsigned int invalidated_pos)
 	{
@@ -91,8 +98,8 @@ protected:
 	std::shared_ptr<RssFeed> feed;
 
 	Matcher matcher;
-
-	bool apply_filter;
+	bool filter_active;
+	void apply_filter(const std::string& filter_query);
 
 private:
 	void register_format_styles();
@@ -155,7 +162,7 @@ private:
 
 	ListFormatter listfmt;
 	Cache* rsscache;
-	FilterContainer& filters;
+	FilterContainer& filter_container;
 };
 
 } // namespace newsboat

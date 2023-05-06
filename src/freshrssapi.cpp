@@ -313,23 +313,15 @@ bool FreshRssApi::update_article_flags(const std::string& oldflags,
 	bool success = true;
 
 	if (star_flag.length() > 0) {
-		if (strchr(oldflags.c_str(), star_flag[0]) == nullptr &&
-			strchr(newflags.c_str(), star_flag[0]) != nullptr) {
-			success = star_article(guid, true);
-		} else if (strchr(oldflags.c_str(), star_flag[0]) != nullptr &&
-			strchr(newflags.c_str(), star_flag[0]) == nullptr) {
-			success = star_article(guid, false);
-		}
+		update_flag(oldflags, newflags, star_flag[0], [&](bool added) {
+			success = star_article(guid, added);
+		});
 	}
 
 	if (share_flag.length() > 0) {
-		if (strchr(oldflags.c_str(), share_flag[0]) == nullptr &&
-			strchr(newflags.c_str(), share_flag[0]) != nullptr) {
-			success = share_article(guid, true);
-		} else if (strchr(oldflags.c_str(), share_flag[0]) != nullptr &&
-			strchr(newflags.c_str(), share_flag[0]) == nullptr) {
-			success = share_article(guid, false);
-		}
+		update_flag(oldflags, newflags, share_flag[0], [&](bool added) {
+			success = share_article(guid, added);
+		});
 	}
 
 	return success;
@@ -520,10 +512,13 @@ rsspp::Feed FreshRssApi::fetch_feed(const std::string& id, CurlHandle& cached_ha
 			if (entry.contains("enclosure") && !entry["enclosure"].is_null()) {
 				for (const auto& a : entry["enclosure"]) {
 					if (a.contains("href") && a.contains("type")
-						&& !a["href"].is_null() && !a["type"].is_null()
-						&& newsboat::utils::is_valid_podcast_type(a["type"])) {
-						item.enclosure_type = a["type"];
-						item.enclosure_url = a["href"];
+						&& !a["href"].is_null() && !a["type"].is_null()) {
+						item.enclosures.push_back(
+						rsspp::Enclosure {
+							a["href"],
+							a["type"],
+						}
+						);
 						break;
 					}
 				}

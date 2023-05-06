@@ -155,7 +155,7 @@ pub fn get_default_browser() -> String {
 
 pub fn md5hash(input: &str) -> String {
     let digest = md5::compute(input);
-    let hash = format!("{:x}", digest);
+    let hash = format!("{digest:x}");
     hash
 }
 
@@ -315,7 +315,7 @@ pub fn substr_with_width_stfl(string: &str, max_width: usize) -> String {
 }
 
 /// Remove all soft-hyphens as they can behave unpredictably (see
-/// https://github.com/akrennmair/newsbeuter/issues/259#issuecomment-259609490) and inadvertently
+/// <https://github.com/akrennmair/newsbeuter/issues/259#issuecomment-259609490>) and inadvertently
 /// render as hyphens
 pub fn remove_soft_hyphens(text: &mut String) {
     text.retain(|c| c != '\u{00AD}')
@@ -540,7 +540,7 @@ pub fn make_title(rs_str: String) -> String {
         .trim_end_matches(".htm");
 
     // 'title with dashes'
-    let result = result.replace('-', " ").replace('_', " ");
+    let result = result.replace(['-', '_'], " ");
 
     //'Title with dashes'
     //let result = "";
@@ -561,7 +561,7 @@ pub fn make_title(rs_str: String) -> String {
 /// Run the given command interactively with inherited stdin and stdout/stderr. Return the lowest
 /// 8 bits of its exit code, or `None` if the command failed to start.
 pub fn run_interactively(command: &str, caller: &str) -> Option<u8> {
-    log!(Level::Debug, &format!("{}: running `{}'", caller, command));
+    log!(Level::Debug, &format!("{caller}: running `{command}'"));
     Command::new("sh")
         .arg("-c")
         .arg(command)
@@ -569,7 +569,7 @@ pub fn run_interactively(command: &str, caller: &str) -> Option<u8> {
         .map_err(|err| {
             log!(
                 Level::Warn,
-                &format!("{}: Couldn't create child process: {}", caller, err)
+                &format!("{caller}: Couldn't create child process: {err}")
             );
         })
         .ok()
@@ -580,7 +580,7 @@ pub fn run_interactively(command: &str, caller: &str) -> Option<u8> {
 /// Run the given command non-interactively with closed stdin and stdout/stderr. Return the lowest
 /// 8 bits of its exit code, or `None` if the command failed to start.
 pub fn run_non_interactively(command: &str, caller: &str) -> Option<u8> {
-    log!(Level::Debug, &format!("{}: running `{}'", caller, command));
+    log!(Level::Debug, &format!("{caller}: running `{command}'"));
     Command::new("sh")
         .arg("-c")
         .arg(command)
@@ -591,7 +591,7 @@ pub fn run_non_interactively(command: &str, caller: &str) -> Option<u8> {
         .map_err(|err| {
             log!(
                 Level::Warn,
-                &format!("{}: Couldn't create child process: {}", caller, err)
+                &format!("{caller}: Couldn't create child process: {err}")
             );
         })
         .ok()
@@ -787,9 +787,11 @@ pub fn tokenize_quoted(line: &str, delimiters: &str) -> Vec<String> {
 
 /// The result of executing `extract_filter()`.
 pub struct FilterUrlParts {
+    #[allow(rustdoc::bare_urls)]
     /// "~/bin/foo.sh" in "filter:~/bin/foo.sh:https://example.com/news.atom"
     pub script_name: String,
 
+    #[allow(rustdoc::bare_urls)]
     /// "https://example.com/news.atom" in "filter:~/bin/foo.sh:https://example.com/news.atom"
     pub url: String,
 }
@@ -861,7 +863,7 @@ pub fn translit(tocode: &str, fromcode: &str) -> String {
         return tocode.to_string();
     }
 
-    let tocode_translit = format!("{}//TRANSLIT", tocode);
+    let tocode_translit = format!("{tocode}//TRANSLIT");
 
     unsafe {
         if STATE == TranslitState::Unknown {
@@ -887,15 +889,12 @@ pub fn translit(tocode: &str, fromcode: &str) -> String {
                         iconv_close(cd);
                     } else {
                         let errno = std::io::Error::last_os_error();
-                        eprintln!("iconv_open('{}', '{}') failed: {}", tocode, fromcode, errno);
+                        eprintln!("iconv_open('{tocode}', '{fromcode}') failed: {errno}");
                         std::process::abort();
                     }
                 } else {
                     let errno = std::io::Error::last_os_error();
-                    eprintln!(
-                        "iconv_open('{}', '{}') failed: {}",
-                        tocode_translit, fromcode, errno
-                    );
+                    eprintln!("iconv_open('{tocode_translit}', '{fromcode}') failed: {errno}");
                     std::process::abort();
                 }
             } else {
@@ -914,10 +913,6 @@ pub fn translit(tocode: &str, fromcode: &str) -> String {
 
 /// Converts `text` from encoding `fromcode` to encoding `tocode`.
 pub fn convert_text(text: &[u8], tocode: &str, fromcode: &str) -> Vec<u8> {
-    if tocode.to_lowercase() == fromcode.to_lowercase() {
-        return text.to_owned();
-    }
-
     let mut result = vec![];
 
     let tocode_translit = translit(tocode, fromcode);
@@ -2036,7 +2031,7 @@ mod tests {
 
         let check = |fromcode, tocode| {
             let expected1 = tocode;
-            let expected2 = format!("{}//TRANSLIT", tocode);
+            let expected2 = format!("{tocode}//TRANSLIT");
 
             let actual = translit(tocode, fromcode);
 
@@ -2080,61 +2075,11 @@ mod tests {
     }
 
     #[test]
-    fn t_convert_text_returns_input_string_if_fromcode_and_tocode_are_literally_the_same() {
-        let inputs: &[&[u8]] = &[
-            &[0x81, 0x13, 0xa0],       // \x81 is not valid UTF-8
-            &[0x01],                   // incomplete UTF-16
-            &[0x01, 0x1f, 0x80, 0x9b], // those bytes are not defined in ISO-8859-1
-            &[0x7f, 0x1e, 0x03],       // these bytes are not defined in KOI8-R
-        ];
-
-        let codes = &["utf-8", "utf-16", "iso-8859-1", "koi8-r"];
-
-        for code in codes {
-            for input in inputs {
-                assert_eq!(convert_text(input, code, code), *input);
-            }
-        }
-    }
-
-    #[test]
-    fn t_convert_text_returns_input_string_if_fromcode_is_an_uppercase_of_tocode() {
-        let inputs: &[&[u8]] = &[
-            &[0x81, 0x13, 0xa0],       // \x81 is not valid UTF-8
-            &[0x01],                   // incomplete UTF-16
-            &[0x01, 0x1f, 0x80, 0x9b], // those bytes are not defined in ISO-8859-1
-            &[0x7f, 0x1e, 0x03],       // these bytes are not defined in KOI8-R
-        ];
-
-        let codes = &["utf-8", "utf-16", "iso-8859-1", "koi8-r"];
-
-        for code in codes {
-            for input in inputs {
-                let fromcode = code.to_uppercase();
-                let tocode = code;
-                assert_eq!(convert_text(input, tocode, &fromcode), *input);
-            }
-        }
-    }
-
-    #[test]
-    fn t_convert_text_returns_input_string_if_tocode_is_an_uppercase_of_fromcode() {
-        let inputs: &[&[u8]] = &[
-            &[0x81, 0x13, 0xa0],       // \x81 is not valid UTF-8
-            &[0x01],                   // incomplete UTF-16
-            &[0x01, 0x1f, 0x80, 0x9b], // those bytes are not defined in ISO-8859-1
-            &[0x7f, 0x1e, 0x03],       // these bytes are not defined in KOI8-R
-        ];
-
-        let codes = &["utf-8", "utf-16", "iso-8859-1", "koi8-r"];
-
-        for code in codes {
-            for input in inputs {
-                let fromcode = code;
-                let tocode = code.to_uppercase();
-                assert_eq!(convert_text(input, &tocode, fromcode), *input);
-            }
-        }
+    fn t_convert_text_returns_input_string_if_fromcode_and_tocode_are_the_same() {
+        // \x81 is not valid UTF-8
+        let input = &[0x81, 0x13, 0x41];
+        let expected = &[0x3f, 0x13, 0x41];
+        assert_eq!(convert_text(input, "UTF-8", "UTF-8"), expected);
     }
 
     #[test]

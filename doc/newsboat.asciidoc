@@ -5,6 +5,7 @@
 :sectlinks:
 :nofooter:
 :warning-caption: pass:[<span style='font-size: 3rem'>&#x26a0;</span>]
+:experimental:
 
 == Introduction
 
@@ -55,7 +56,7 @@ Newsboat binaries are available in a number of repositories:
 The most up-to-date source code can always be downloaded from the Git
 repository:
 
-	$ git clone git://github.com/newsboat/newsboat.git
+	$ git clone https://github.com/newsboat/newsboat.git
 
 There are also signed release tarballs available from https://newsboat.org/[our
 website].
@@ -67,15 +68,16 @@ Newsboat can be compiled. Make sure to install the header files as well (on
 Debian and derivatives, headers are in `-dev` packages, e.g. `libsqlite3-dev`.)
 
 // UPDATE README.md IF YOU CHANGE THIS LIST
+- GNU Make 4.0 or newer
 - GCC 5.0 or newer, or Clang 3.6 or newer
 - Stable https://www.rust-lang.org/en-US/[Rust] and Cargo (Rust's package
-  manager) (1.59.0 or newer; might work with older versions, but we don't check
+  manager) (1.66.1 or newer; might work with older versions, but we don't check
   that)
 - https://github.com/newsboat/stfl[STFL (version 0.21 or newer)] (the link
   points to our own fork because http://www.clifford.at/stfl/[the upstream] is
   dead)
 - https://www.sqlite.org/download.html[SQLite3 (version 3.5 or newer)]
-- https://curl.haxx.se/download.html[libcurl (version 7.21.6 or newer)]
+- https://curl.haxx.se/download.html[libcurl (version 7.32.0 or newer)]
 - Header files for the SSL library that libcurl uses. You can find out which
     library that is from the output of `curl --version`; most often that's
     OpenSSL, sometimes GnuTLS, or maybe something else.
@@ -342,6 +344,7 @@ you can configure in Newsboat regarding NewsBlur.
 
 NewsBlur's folders are converted into Newsboat tags. You can select and
 filter feeds by tags; see <<_tagging>> and <<_filter_language>> for details.
+NewsBlur's starring/saving feature is currently unsupported by Newsboat.
 
 === FeedHQ
 
@@ -653,11 +656,19 @@ See also <<miniflux-passwordfile,`miniflux-passwordfile`>>,
 <<miniflux-passwordeval,`miniflux-passwordeval`>>, and
 <<_passwords_for_external_apis>>.
 
-The Miniflux backend will default to using the `basic` HTTP authentication
-method, since Newsboat sends extraneous requests when trying to determine the
-appropriate method automatically. If your Miniflux instance uses a special setup
-that doesn't function with `basic` authentication, it may be necessary to
-explicitly set the `http-auth-method` variable in the configuration.
+When a username/password are specified, the Miniflux backend will default to
+using the `basic` HTTP authentication method, since Newsboat sends extraneous
+requests when trying to determine the appropriate method automatically. If your
+Miniflux instance uses a special setup that doesn't function with `basic`
+authentication, it may be necessary to explicitly set the `http-auth-method`
+variable in the configuration.
+
+It is also possible to specify an API token instead of the username/password combination:
+
+	miniflux-token "my-api-token"
+
+See also <<miniflux-tokenfile,`miniflux-tokenfile`>>, and
+<<miniflux-tokeneval,`miniflux-tokeneval`>>.
 
 Unlike with other backends, Miniflux's starring/bookmarking feature is not
 currently supported in Newsboat.
@@ -1302,12 +1313,12 @@ normally run, such as a web browser or an executable script. For example:
   browser firefox
 
 The browser command also takes an optional `%u` to specify at which point the
-URL should be expanded, along with `%t` specifying where the type of the URL
-should be expanded and `%F` specifying where the URL of the feed's website (or
-the URL of the feed itself if not available) should be expanded. All parameters
-will be enclosed in single quotes, making it unnecessary to quote them yourself.
-If none of the parameters are used, the URL will be appended at the end of the
-command. Therefore, the previous example is equivalent to:
+URL should be expanded, `%t` specifying where the type of the URL should be
+expanded, `%T` for the title of the feed/article, and `%F` specifying where
+the URL of the feed's website (or the URL of the feed itself if not available)
+should be expanded. All parameters will be enclosed in single quotes, making it
+unnecessary to quote them yourself. If none of the parameters are used, the URL
+will be appended at the end of the command. Therefore, the previous example is equivalent to:
 
   browser "firefox %u"
 
@@ -1619,21 +1630,21 @@ include::podboat-cmds-linked.asciidoc[]
 == Podboat Operations
 
 .Available Operations in Podboat
-[frame="all", grid="all", format="dsv", options="header", cols="20,20,60"]
+[frame="all", grid="all", format="psv", options="header", cols="20,20,60"]
 |=========================================================================
-Operation:Default key:Description
-[[pb-quit]]<<pb-quit,+quit+>>:q:Quit the program.
-[[pb-hard-quit]]<<pb-hard-quit,+hard-quit+>>:Q:Quit the program without confirmation.
-[[pb-help]]<<pb-help,+help+>>:?:Show the help screen.
-[[pb-download]]<<pb-download,+pb-download+>>:d:Download the currently selected URL.
-[[pb-cancel]]<<pb-cancel,+pb-cancel+>>:c:Cancel the currently selected download.
-[[pb-play]]<<pb-play,+pb-play+>>:p:Start player with currently selected download.
-[[pb-mark-as-finished]]<<pb-mark-as-finished,+pb-mark-as-finished+>>:m:Mark currently selected entry as finished.
-[[pb-delete]]<<pb-delete,+pb-delete+>>:D:Delete the currently selected URL from the queue.
-[[pb-purge]]<<pb-purge,+pb-purge+>>:P:Remove all finished and deleted downloads from the queue and load URLs that were newly added to the queue.
-[[pb-toggle-download-all]]<<pb-toggle-download-all,+pb-toggle-download-all+>>:a:Toggle the "automatic download" feature where all queued URLs are downloaded one after the other. The <<max-downloads,`max-downloads`>> configuration option controls how many downloads are done in parallel.
-[[pb-increase-max-dls]]<<pb-increase-max-dls,+pb-increase-max-dls+>>:+:Increase the <<max-download,`max-downloads`>> option by 1.
-[[pb-decrease-max-dls]]<<pb-decrease-max-dls,+pb-decrease-max-dls+>>:-:Decrease the <<max-download,`max-downloads`>> option by 1. If the option is already 1, no further decrease is possible.
+|Operation|Default key|Description
+|[[pb-quit]]<<pb-quit,+quit+>>|kbd:[Q]|Quit the program.
+|[[pb-hard-quit]]<<pb-hard-quit,+hard-quit+>>|kbd:[Shift+Q]|Quit the program without confirmation.
+|[[pb-help]]<<pb-help,+help+>>|kbd:[?]|Show the help screen.
+|[[pb-download]]<<pb-download,+pb-download+>>|kbd:[D]|Download the currently selected URL.
+|[[pb-cancel]]<<pb-cancel,+pb-cancel+>>|kbd:[C]|Cancel the currently selected download.
+|[[pb-play]]<<pb-play,+pb-play+>>|kbd:[P]|Start player with currently selected download.
+|[[pb-mark-as-finished]]<<pb-mark-as-finished,+pb-mark-as-finished+>>|kbd:[M]|Mark currently selected entry as finished.
+|[[pb-delete]]<<pb-delete,+pb-delete+>>|kbd:[Shift+D]|Delete the currently selected URL from the queue.
+|[[pb-purge]]<<pb-purge,+pb-purge+>>|kbd:[Shift+P]|Remove all finished and deleted downloads from the queue and load URLs that were newly added to the queue.
+|[[pb-toggle-download-all]]<<pb-toggle-download-all,+pb-toggle-download-all+>>|kbd:[A]|Toggle the "automatic download" feature where all queued URLs are downloaded one after the other. The <<max-downloads,`max-downloads`>> configuration option controls how many downloads are done in parallel.
+|[[pb-increase-max-dls]]<<pb-increase-max-dls,+pb-increase-max-dls+>>|kbd:[+]|Increase the <<max-download,`max-downloads`>> option by 1.
+|[[pb-decrease-max-dls]]<<pb-decrease-max-dls,+pb-decrease-max-dls+>>|kbd:[-]|Decrease the <<max-download,`max-downloads`>> option by 1. If the option is already 1, no further decrease is possible.
 |=========================================================================
 
 
@@ -1643,9 +1654,9 @@ Operation:Default key:Description
 MIT License
 
 Copyright 2006-2015 Andreas Krennmair <ak@newsbeuter.org> +
-Copyright 2015-2022 Alexander Batischev <eual.jp@gmail.com> +
+Copyright 2015-2023 Alexander Batischev <eual.jp@gmail.com> +
 Copyright 2006-2017 Newsbeuter contributors +
-Copyright 2017-2022 Newsboat contributors
+Copyright 2017-2023 Newsboat contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),

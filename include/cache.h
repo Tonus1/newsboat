@@ -51,9 +51,9 @@ public:
 		const std::string& feedurl);
 	void update_rssitem_unread_and_enqueued(RssItem* item,
 		const std::string& feedurl);
-	/// if requested, removes unreachable data stored in cache.
-	/// returns a count of unreachable feeds and items.
-	std::uint64_t cleanup_cache(std::vector<std::shared_ptr<RssFeed>> feeds,
+	/// If requested, removes unreachable data stored in cache.
+	/// Returns a list of unreachable feeds.
+	std::vector<std::string> cleanup_cache(std::vector<std::shared_ptr<RssFeed>> feeds,
 		bool always_clean = false);
 	void do_vacuum();
 	std::vector<std::shared_ptr<RssItem>> search_for_items(
@@ -83,7 +83,7 @@ private:
 	SchemaVersion get_schema_version();
 	void populate_tables();
 	void set_pragmas();
-	void delete_item(const std::shared_ptr<RssItem>& item);
+	void delete_item_unlocked(const std::shared_ptr<RssItem>& item);
 	void clean_old_articles();
 	void update_rssitem_unlocked(std::shared_ptr<RssItem> item,
 		const std::string& feedurl,
@@ -111,7 +111,7 @@ private:
 
 	sqlite3* db;
 	ConfigContainer* cfg;
-	std::mutex mtx;
+	std::recursive_mutex mtx;
 };
 
 } // namespace newsboat
